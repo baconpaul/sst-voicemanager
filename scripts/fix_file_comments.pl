@@ -30,7 +30,7 @@ sub findfiles
  * voice management in response to midi and clap event streams
  * with support for a variety of play, trigger, and midi nodes
  *
- * Copyright 2023, various authors, as described in the GitHub
+ * Copyright 2023-2024, various authors, as described in the GitHub
  * transaction log. 
  *
  * sst-voicemanager is released under the MIT license, available

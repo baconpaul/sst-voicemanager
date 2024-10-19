@@ -17,10 +17,19 @@ endif()
 
 if (${bldtest})
     add_executable(${PROJECT_NAME}-test
-            tests/main.cpp
+            # tests/main.cpp
             tests/basic.cpp
 
             tests/basic_poly.cpp
+            tests/stealing_maxvoice.cpp
+            tests/mono_playback.cpp
+            tests/mpe_tests.cpp
+            tests/routing_params.cpp
+            tests/stealing_groups.cpp
+            tests/legato_playback.cpp
+            tests/piano_mode.cpp
+
+            libs/catch2/catch_amalgamated.cpp
         )
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

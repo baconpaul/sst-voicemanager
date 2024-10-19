@@ -13,14 +13,11 @@
  * https://github.com/surge-synthesizer/sst-voicemanager
  */
 
-#define CATCH_CONFIG_RUNNER
 #include "catch2.hpp"
 
-#include <iostream>
+#include "sst/voicemanager/voicemanager.h"
+#include "test_player.h"
 
-int main(int argc, char **argv)
-{
-    int result = Catch::Session().run(argc, argv);
+TEST_CASE("Mono Mode - Voices") { REQUIRE_INCOMPLETE_TEST; }
 
-    return result;
-}
+TEST_CASE("Mono Mode - Notes") { REQUIRE_INCOMPLETE_TEST; }
