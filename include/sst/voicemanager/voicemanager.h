@@ -23,8 +23,6 @@
 #include <limits>
 #include <algorithm>
 
-#include "voicemanager_responderproxy.h"
-
 /**
  * \mainpage SST Voice Manager
  *
@@ -84,6 +82,8 @@ template <typename Cfg> struct VoiceBeginBufferEntry
      */
     using buffer_t = std::array<VoiceBeginBufferEntry<Cfg>, Cfg::maxVoiceCount>;
 };
+
+#include "voicemanager_responderproxy.h"
 
 /**
  * VoiceManager is the main class used for voice management, and the sole public API.
@@ -213,14 +213,14 @@ template <typename Cfg, typename Responder, typename MonoResponder> struct Voice
     void setStealingPriorityMode(uint64_t groupId, StealingPriorityMode pm);
 
   private:
-    struct Details;
-    Details details;
-
     using responderProxy_t = details::ResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
     responderProxy_t responder;
-    using monoResponderProxy_t = details::ResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
+    using monoResponderProxy_t =
+        details::MonoResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
     monoResponderProxy_t monoResponder;
 
+    struct Details;
+    Details details;
 };
 } // namespace sst::voicemanager
 
