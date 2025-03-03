@@ -23,6 +23,8 @@
 #include <limits>
 #include <algorithm>
 
+#include "voicemanager_responderproxy.h"
+
 /**
  * \mainpage SST Voice Manager
  *
@@ -100,6 +102,10 @@ template <typename Cfg> struct VoiceBeginBufferEntry
  */
 template <typename Cfg, typename Responder, typename MonoResponder> struct VoiceManager
 {
+    using cfg_t = Cfg;
+    using responder_t = Responder;
+    using monoResponder_t = MonoResponder;
+
     typedef VoiceInitInstructionsEntry<Cfg> initInstruction_t;
 
     enum struct MIDI1Dialect
@@ -165,8 +171,9 @@ template <typename Cfg, typename Responder, typename MonoResponder> struct Voice
     int8_t mpeGlobalChannel{0};
     int8_t mpeTimbreCC{74};
 
-    Responder &responder;
-    MonoResponder &monoResponder;
+    Responder &responderUnderlyer;
+    MonoResponder &monoResponderUnderlyer;
+
     VoiceManager(Responder &r, MonoResponder &m);
 
     void registerVoiceEndCallback();
@@ -208,6 +215,12 @@ template <typename Cfg, typename Responder, typename MonoResponder> struct Voice
   private:
     struct Details;
     Details details;
+
+    using responderProxy_t = details::ResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
+    responderProxy_t responder;
+    using monoResponderProxy_t = details::ResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
+    monoResponderProxy_t monoResponder;
+
 };
 } // namespace sst::voicemanager
 

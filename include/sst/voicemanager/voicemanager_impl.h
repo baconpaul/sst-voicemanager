@@ -573,9 +573,10 @@ struct VoiceManager<Cfg, Responder, MonoResponder>::Details
 
 template <typename Cfg, typename Responder, typename MonoResponder>
 VoiceManager<Cfg, Responder, MonoResponder>::VoiceManager(Responder &r, MonoResponder &m)
-    : responder(r), monoResponder(m), details(*this)
+    : responderUnderlyer(r), monoResponderUnderlyer(m), responder(*this), monoResponder(*this),details(*this)
 {
     static_assert(constraints::ConstraintsChecker<Cfg, Responder, MonoResponder>::satisfies());
+    static_assert(constraints::ConstraintsChecker<Cfg, responderProxy_t, monoResponderProxy_t>::satisfies());
     registerVoiceEndCallback();
 }
 
