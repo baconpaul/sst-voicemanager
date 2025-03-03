@@ -19,6 +19,7 @@
 #include <type_traits>
 
 #include "voicemanager_constraints.h"
+#include "debug_support.h"
 
 #include <iostream>
 #include <unordered_map>
@@ -579,6 +580,8 @@ VoiceManager<Cfg, Responder, MonoResponder>::VoiceManager(Responder &r, MonoResp
     static_assert(constraints::ConstraintsChecker<Cfg, Responder, MonoResponder>::satisfies());
     static_assert(
         constraints::ConstraintsChecker<Cfg, responderProxy_t, monoResponderProxy_t>::satisfies());
+
+    debugSupport = std::make_unique<details::DebugSupport>();
     registerVoiceEndCallback();
 }
 
@@ -593,6 +596,10 @@ bool VoiceManager<Cfg, Responder, MonoResponder>::processNoteOnEvent(int16_t por
                                                                      int16_t key, int32_t noteid,
                                                                      float velocity, float retune)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, noteid, velocity, retune);
+    }
     if (repeatedKeyMode == RepeatedKeyMode::PIANO)
     {
         bool didAnyRetrigger{false};
@@ -923,6 +930,11 @@ void VoiceManager<Cfg, Responder, MonoResponder>::processNoteOffEvent(int16_t po
                                                                       int16_t key, int32_t noteid,
                                                                       float velocity)
 {
+
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, noteid, velocity);
+    }
     std::unordered_set<uint64_t> retriggerGroups;
 
     VML("==== PROCESS NOTE OFF " << port << "/" << channel << "/" << key << "/" << noteid << " @ "
@@ -1067,6 +1079,11 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::updateSustainPedal(int16_t port, int16_t channel,
                                                                      int8_t level)
 {
+
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, level);
+    }
     auto sop = details.sustainOn[channel];
     details.sustainOn[channel] = level > 64;
     if (sop != details.sustainOn[channel])
@@ -1127,6 +1144,11 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::routeMIDIPitchBend(int16_t port, int16_t channel,
                                                                      int16_t pb14bit)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, pb14bit);
+    }
+
     if (dialect == MIDI1Dialect::MIDI1)
     {
         details.doMonoPitchBend(port, channel, pb14bit);
@@ -1177,6 +1199,11 @@ void VoiceManager<Cfg, Responder, MonoResponder>::routeNoteExpression(int16_t po
                                                                       int32_t expression,
                                                                       double value)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, noteid, expression, value);
+    }
+
     for (auto &vi : details.voiceInfo)
     {
         if (vi.matches(port, channel, key,
@@ -1191,6 +1218,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::routePolyphonicParameterModulation(
     int16_t port, int16_t channel, int16_t key, int32_t voiceid, uint32_t parameter, double value)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, voiceid, parameter, value);
+    }
     for (auto &vi : details.voiceInfo)
     {
         if (vi.matchesVoiceId(voiceid))
@@ -1204,6 +1235,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::routeMonophonicParameterModulation(
     int16_t port, int16_t channel, int16_t key, uint32_t parameter, double value)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, parameter, value);
+    }
     for (auto &vi : details.voiceInfo)
     {
         if (vi.activeVoiceCookie)
@@ -1218,6 +1253,10 @@ void VoiceManager<Cfg, Responder, MonoResponder>::routePolyphonicAftertouch(int1
                                                                             int16_t channel,
                                                                             int16_t key, int8_t pat)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, key, pat);
+    }
     for (auto &vi : details.voiceInfo)
     {
         if (vi.matches(port, channel, key, -1)) // all keys and notes on a channel for midi PB
@@ -1231,6 +1270,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::routeChannelPressure(int16_t port,
                                                                        int16_t channel, int8_t pat)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, port, channel, pat);
+    }
     if (dialect == MIDI1Dialect::MIDI1)
     {
         details.doMonoChannelPressure(port, channel, pat);
@@ -1252,6 +1295,7 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::routeMIDI1CC(int16_t port, int16_t channel,
                                                                int8_t cc, int8_t val)
 {
+
     if (dialect == MIDI1Dialect::MIDI1_MPE && channel != mpeGlobalChannel && cc == mpeTimbreCC)
     {
         for (auto &vi : details.voiceInfo)
@@ -1272,6 +1316,10 @@ void VoiceManager<Cfg, Responder, MonoResponder>::routeMIDI1CC(int16_t port, int
 template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::allSoundsOff()
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__);
+    }
     for (const auto &v : details.voiceInfo)
     {
         if (v.activeVoiceCookie)
@@ -1284,6 +1332,10 @@ void VoiceManager<Cfg, Responder, MonoResponder>::allSoundsOff()
 template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::allNotesOff()
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__);
+    }
     for (auto &v : details.voiceInfo)
     {
         if (v.activeVoiceCookie)
@@ -1299,6 +1351,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::setPolyphonyGroupVoiceLimit(uint64_t groupId,
                                                                               int32_t limit)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, groupId, limit);
+    }
     details.guaranteeGroup(groupId);
     details.polyLimits[groupId] = limit;
 }
@@ -1307,6 +1363,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::setPlaymode(uint64_t groupId, PlayMode pm,
                                                               uint64_t features)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, groupId, static_cast<int32_t>(pm), features);
+    }
     details.guaranteeGroup(groupId);
     details.playMode[groupId] = pm;
     details.playModeFeatures[groupId] = features;
@@ -1316,6 +1376,10 @@ template <typename Cfg, typename Responder, typename MonoResponder>
 void VoiceManager<Cfg, Responder, MonoResponder>::setStealingPriorityMode(uint64_t groupId,
                                                                           StealingPriorityMode pm)
 {
+    if (debugSupport)
+    {
+        debugSupport->logVMAPI(__func__, groupId, static_cast<int32_t>(pm));
+    }
     details.guaranteeGroup(groupId);
     details.stealingPriorityMode[groupId] = pm;
 }

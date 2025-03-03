@@ -33,7 +33,6 @@
 
 namespace sst::voicemanager
 {
-
 /**
  * VoiceInitBufferEntry is the object which the responder needs to populate
  * in the voice initiation creation lifecycle.
@@ -83,6 +82,10 @@ template <typename Cfg> struct VoiceBeginBufferEntry
     using buffer_t = std::array<VoiceBeginBufferEntry<Cfg>, Cfg::maxVoiceCount>;
 };
 
+namespace details
+{
+struct DebugSupport;
+}
 #include "voicemanager_responderproxy.h"
 
 /**
@@ -213,6 +216,8 @@ template <typename Cfg, typename Responder, typename MonoResponder> struct Voice
     void setStealingPriorityMode(uint64_t groupId, StealingPriorityMode pm);
 
   private:
+    std::unique_ptr<details::DebugSupport> debugSupport;
+
     using responderProxy_t = details::ResponderProxy<VoiceManager<Cfg, Responder, MonoResponder>>;
     responderProxy_t responder;
     using monoResponderProxy_t =
@@ -221,6 +226,11 @@ template <typename Cfg, typename Responder, typename MonoResponder> struct Voice
 
     struct Details;
     Details details;
+
+    friend responderProxy_t;
+    friend monoResponderProxy_t;
+    friend struct details::DebugSupport;
+    friend struct Details;
 };
 } // namespace sst::voicemanager
 
