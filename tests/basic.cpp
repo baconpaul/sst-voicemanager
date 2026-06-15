@@ -17,6 +17,18 @@
 #include "sst/voicemanager/voicemanager.h"
 #include "test_player.h"
 
+#if SST_VOICEMANAGER_RTSAN_ACTIVE
+// Keep running after the first rtsan violation so we see every allocation, not just the first.
+extern "C" const char *__rtsan_default_options() { return "halt_on_error=false"; }
+extern "C" void __sanitizer_report_error_summary(const char *error_summary)
+{
+    fprintf(stderr, "%s\n", error_summary);
+    /* do other custom things */
+    sst::voicemanager::test::RealtimeRegionGuard::errorCount++;
+}
+int sst::voicemanager::test::RealtimeRegionGuard::errorCount = 0;
+#endif
+
 TEST_CASE("Tests Configured") { REQUIRE(1 + 1 == 2); }
 TEST_CASE("Can Instantiate Test Player")
 {

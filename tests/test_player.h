@@ -30,6 +30,57 @@
 #include "sst/voicemanager/voicemanager.h"
 #include <algorithm>
 
+/*
+ * RTSan realtime-region helpers. Inside a clang realtime-sanitizer build these mark a
+ * scope as non-blocking so any allocation/syscall in it is flagged. Everywhere else they
+ * are a no-op, so the same tests build and run with any compiler.
+ */
+#if defined(__has_feature)
+#if __has_feature(realtime_sanitizer)
+#define SST_VOICEMANAGER_RTSAN_ACTIVE 1
+#endif
+#endif
+
+#if SST_VOICEMANAGER_RTSAN_ACTIVE
+// These live in the rtsan runtime. Newer llvm declares them in <sanitizer/rtsan_interface.h>,
+// but llvm 20 does not, so declare them ourselves (a matching redeclaration is harmless).
+extern "C" void __rtsan_realtime_enter(void);
+extern "C" void __rtsan_realtime_exit(void);
+extern "C" void __rtsan_disable(void);
+extern "C" void __rtsan_enable(void);
+namespace sst::voicemanager::test
+{
+struct RealtimeRegionGuard // RAII: enter/exit a non-blocking region
+{
+    static int errorCount;
+    RealtimeRegionGuard()
+    {
+        errorCount = 0;
+        __rtsan_realtime_enter();
+    }
+    ~RealtimeRegionGuard()
+    {
+        __rtsan_realtime_exit();
+        REQUIRE(errorCount == 0);
+    }
+    RealtimeRegionGuard(const RealtimeRegionGuard &) = delete;
+    RealtimeRegionGuard &operator=(const RealtimeRegionGuard &) = delete;
+};
+struct DisableRealtimeGuard // RAII: suspend rt checks (for test-harness-only code)
+{
+    DisableRealtimeGuard() { __rtsan_disable(); }
+    ~DisableRealtimeGuard() { __rtsan_enable(); }
+    DisableRealtimeGuard(const DisableRealtimeGuard &) = delete;
+    DisableRealtimeGuard &operator=(const DisableRealtimeGuard &) = delete;
+};
+} // namespace sst::voicemanager::test
+#define SST_VOICEMANAGER_RT_REGION ::sst::voicemanager::test::RealtimeRegionGuard sstVmRtRegion_
+#define SST_VOICEMANAGER_RT_DISABLE ::sst::voicemanager::test::DisableRealtimeGuard sstVmRtDisable_
+#else
+#define SST_VOICEMANAGER_RT_REGION (void)0
+#define SST_VOICEMANAGER_RT_DISABLE (void)0
+#endif
+
 #define TPT(...)                                                                                   \
     if constexpr (doLog)                                                                           \
     {                                                                                              \
@@ -386,26 +437,33 @@ template <size_t voiceCount, bool doLog = false> struct TestPlayer
 
     std::function<uint64_t(int16_t)> polyGroupForKey{nullptr};
 
-    std::vector<pckn_t> getGatedVoicePCKNS() const
+    // These return a reference into a reused scratch buffer so calling them from inside a
+    // realtime region neither allocates (the fill is wrapped in a disable guard, and capacity
+    // is reused across calls) nor leaks a temporary's free into the region at the call site.
+    mutable std::vector<pckn_t> gatedVoiceScratch, activeVoiceScratch;
+
+    const std::vector<pckn_t> &getGatedVoicePCKNS() const
     {
-        auto res = std::vector<pckn_t>();
+        SST_VOICEMANAGER_RT_DISABLE;
+        gatedVoiceScratch.clear();
         for (auto &v : voiceStorage)
         {
             if (v.state == Voice::ACTIVE && v.isGated)
-                res.push_back(v.pckn);
+                gatedVoiceScratch.push_back(v.pckn);
         }
-        return res;
+        return gatedVoiceScratch;
     }
 
-    std::vector<pckn_t> getActiveVoicePCKNS() const
+    const std::vector<pckn_t> &getActiveVoicePCKNS() const
     {
-        auto res = std::vector<pckn_t>();
+        SST_VOICEMANAGER_RT_DISABLE;
+        activeVoiceScratch.clear();
         for (auto &v : voiceStorage)
         {
             if (v.state == Voice::ACTIVE)
-                res.push_back(v.pckn);
+                activeVoiceScratch.push_back(v.pckn);
         }
-        return res;
+        return activeVoiceScratch;
     }
 
     std::string pcknToString(const pckn_t &v)
@@ -460,6 +518,7 @@ template <size_t voiceCount, bool doLog = false> struct TestPlayer
 
     int32_t activeVoicesMatching(std::function<bool(const Voice &)> cond)
     {
+        SST_VOICEMANAGER_RT_DISABLE;
         int32_t res = 0;
         for (const auto &v : voiceStorage)
         {

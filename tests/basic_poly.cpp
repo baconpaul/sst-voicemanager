@@ -25,6 +25,8 @@ TEST_CASE("Basic Poly Note On Note Off")
         TestPlayer<32> tp;
         auto &vm = tp.voiceManager;
 
+        SST_VOICEMANAGER_RT_REGION;
+
         // Send a midi message note on, see voice and gated voice tick up
         uint16_t port{0}, channel{0}, key{60};
         int32_t noteid{-1};
